@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#050a10" />
+  <title>Ninja Clone Rush — Shadow of the Oni Shogun</title>
+  <meta name="description" content="A Three.js 3D mini game: build a shadow clone army through spirit gates, cut through the crimson ronin and defeat the Oni Shogun." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23050a10'/%3E%3Cpath d='M32 10l20 34H40l-8 10-8-10H12z' fill='%2353f4ff'/%3E%3Ccircle cx='32' cy='35' r='4' fill='%23050a10'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene" aria-label="Ninja Clone Rush 3D game scene"></canvas>
+
+    <!-- atmosphere / post overlays -->
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+    <div id="flash" class="flash" aria-hidden="true"></div>
+    <div id="dash-fx" class="dash-fx" aria-hidden="true"></div>
+
+    <!-- ================================================================== -->
+    <!-- HUD                                                                -->
+    <!-- ================================================================== -->
+    <div id="hud" class="hud is-hidden" aria-hidden="true">
+      <div class="hud-top">
+        <div class="hud-left">
+          <div class="stat-card clones-card">
+            <span class="stat-eyebrow">SHADOW ARMY</span>
+            <div class="stat-row">
+              <svg class="icon-clone" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3c3 0 5 2.2 5 5v1h1.5A2.5 2.5 0 0 1 21 11.5V14H16v-2h-1v9H9v-9H8v2H3v-2.5A2.5 2.5 0 0 1 5.5 9H7V8c0-2.8 2-5 5-5Z" fill="currentColor"/>
+              </svg>
+              <span id="clone-count" class="stat-value">6</span>
+              <span class="stat-max">/ 99</span>
+            </div>
+            <div class="micro-bar"><i id="clone-bar"></i></div>
+            <span id="clone-delta" class="stat-delta"></span>
+          </div>
+          <div class="zone-chip">
+            <span class="zone-dot"></span>
+            <span id="zone-name">BAMBOO PASS</span>
+          </div>
+        </div>
+
+        <div class="hud-center">
+          <div class="route">
+            <div class="route-head">
+              <span class="route-kicker">THE MOONLIT PASS</span>
+              <span id="distance" class="route-distance">440 m</span>
+            </div>
+            <div class="route-track">
+              <div class="route-base"></div>
+              <i id="route-fill" class="route-fill"></i>
+              <div class="route-ticks" aria-hidden="true">
+                <span style="left: 12%"></span><span style="left: 24%"></span><span style="left: 36%"></span>
+                <span style="left: 48%"></span><span style="left: 60%"></span><span style="left: 72%"></span>
+                <span style="left: 84%"></span><span style="left: 96%"></span>
+              </div>
+              <div id="route-marker" class="route-marker"></div>
+            </div>
+            <div class="route-sub">
+              <span id="objective-text">Reach the Oni Shogun at the shrine</span>
+              <span id="route-percent">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-right">
+          <button id="btn-sound" class="icon-btn" type="button" title="Toggle sound" aria-label="Toggle sound">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a4.5 4.5 0 0 0-2-3.74v7.48A4.5 4.5 0 0 0 16.5 12Zm-2-8.7v2.06a7 7 0 0 1 0 13.28v2.06a9 9 0 0 0 0-17.4Z" fill="currentColor"/></svg>
+          </button>
+          <button id="btn-pause" class="icon-btn" type="button" title="Pause" aria-label="Pause">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="warning" class="warning-pill hidden">
+        <span class="warning-icon">!</span>
+        <span id="warning-text">RONIN AHEAD — POWER 12</span>
+      </div>
+
+      <div id="boss-hud" class="boss-hud hidden">
+        <div class="boss-top">
+          <span class="boss-kicker">FINAL DUEL</span>
+          <span class="boss-name">ONI SHOGUN <em>KUROGANE</em></span>
+          <span id="boss-phase" class="boss-phase">ARMORED</span>
+        </div>
+        <div class="boss-track">
+          <i id="boss-fill" class="boss-fill"></i>
+          <div class="boss-segments" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+        <div class="boss-sub">
+          <span id="boss-hp-label">1500 / 1500</span>
+          <span>CLICK THE EXPOSED CORE TO BREAK HIS ROAR</span>
+        </div>
+      </div>
+
+      <div id="announce" class="announce" role="status" aria-live="polite">
+        <span id="announce-kicker" class="announce-kicker"></span>
+        <strong id="announce-title" class="announce-title"></strong>
+        <span id="announce-sub" class="announce-sub"></span>
+      </div>
+
+      <div class="hud-bottom">
+        <div class="hud-bottom-left">
+          <div class="focus-block">
+            <div class="focus-head">
+              <span class="stat-eyebrow">FOCUS</span>
+              <span id="focus-value" class="focus-value">45</span>
+            </div>
+            <div class="focus-track">
+              <i id="focus-fill" class="focus-fill"></i>
+              <div class="focus-ticks" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+            </div>
+            <span class="focus-note">CLICK A TARGET TO THROW KUNAI · 25 FOCUS</span>
+          </div>
+          <div id="tutorial" class="tutorial is-hidden">
+            <span id="tutorial-key" class="tutorial-key">01</span>
+            <div class="tutorial-copy">
+              <strong id="tutorial-title">Choose your gate</strong>
+              <span id="tutorial-text">Press A / D or click a spirit gate to steer.</span>
+            </div>
+            <i class="tutorial-line"></i>
+          </div>
+        </div>
+
+        <div class="touch-controls" aria-hidden="true">
+          <button id="touch-left" class="touch-btn" type="button" aria-label="Move left">◀</button>
+          <button id="touch-right" class="touch-btn" type="button" aria-label="Move right">▶</button>
+        </div>
+
+        <div class="hud-bottom-right">
+          <button id="storm-btn" class="storm-btn" type="button" aria-label="Shadow Storm ultimate">
+            <span class="storm-ring"></span>
+            <span class="storm-inner">
+              <span class="storm-key">E</span>
+              <span class="storm-title">SHADOW<br/>STORM</span>
+              <span id="storm-sub" class="storm-sub">CHARGING</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div id="cursor" class="cursor is-hidden" aria-hidden="true">
+        <div class="cursor-corner tl"></div><div class="cursor-corner tr"></div>
+        <div class="cursor-corner bl"></div><div class="cursor-corner br"></div>
+        <span class="cursor-dot"></span>
+        <span id="cursor-tag" class="cursor-tag"></span>
+      </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- LOADING                                                            -->
+    <!-- ================================================================== -->
+    <section id="loading" class="screen loading-screen" aria-label="Loading">
+      <div class="loading-bg-kanji" aria-hidden="true">影</div>
+      <div class="loading-inner">
+        <div class="loading-brand">
+          <span class="brand-mark">忍</span>
+          <span class="brand-word">NINJA CLONE RUSH</span>
+        </div>
+        <div class="loading-title">
+          <span class="loading-kicker">FORGING THE SHADOW ARMY</span>
+          <div class="loading-track"><i id="loading-fill"></i></div>
+          <div class="loading-meta"><span id="loading-status">Summoning the moonlit pass…</span><span id="loading-percent">0%</span></div>
+        </div>
+        <p class="loading-tip">“One blade casts a thousand shadows.”</p>
+      </div>
+      <div class="loading-footer">
+        <span>THREE.JS INTERACTIVE 3D</span><span>WEBGL · PBR · RAYCASTING</span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- TITLE / MENU                                                       -->
+    <!-- ================================================================== -->
+    <section id="menu" class="screen menu-screen is-hidden" aria-label="Main menu">
+      <div class="menu-shade" aria-hidden="true"></div>
+      <div class="menu-content">
+        <header class="menu-main">
+          <div class="eyebrow">
+            <span class="eyebrow-rule"></span>
+            INTERACTIVE 3D PROJECT · THREE.JS
+          </div>
+          <div class="title-block">
+            <span class="title-kanji" aria-hidden="true">影分身</span>
+            <h1 class="game-title">
+              <span class="title-line-1">NINJA</span>
+              <span class="title-line-2">CLONE <em>RUSH</em></span>
+            </h1>
+            <span class="seal" aria-hidden="true">忍</span>
+          </div>
+          <p class="tagline">Build a shadow army. Break the crimson line.<br/>Cut down the <em>Oni Shogun.</em></p>
+          <p class="story">
+            The Moonlit Pass has fallen silent. Kurogane, the Oni Shogun, has sealed the shrine at the mountain's
+            heart. As the last Kage, you must run the pass, multiply your shadows at the spirit gates, and shatter
+            his army before he seals the moon forever.
+          </p>
+
+          <div class="menu-objective">
+            <span class="menu-label">OBJECTIVE</span>
+            <ol>
+              <li><span>01</span> Choose spirit gates to grow your shadow army.</li>
+              <li><span>02</span> Break the ronin squads — if your army falls, the run ends.</li>
+              <li><span>03</span> Strike the exposed core and defeat the Oni Shogun.</li>
+            </ol>
+          </div>
+
+          <div class="menu-actions">
+            <button id="btn-start" class="btn-primary" type="button">
+              <span class="btn-label">BEGIN THE RUSH</span>
+              <span class="btn-sub">ENTER / CLICK</span>
+            </button>
+            <button id="btn-menu-sound" class="btn-square" type="button" aria-label="Toggle sound" title="Sound">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a4.5 4.5 0 0 0-2-3.74v7.48A4.5 4.5 0 0 0 16.5 12Zm-2-8.7v2.06a7 7 0 0 1 0 13.28v2.06a9 9 0 0 0 0-17.4Z" fill="currentColor"/></svg>
+            </button>
+          </div>
+
+          <div class="control-chips">
+            <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> STEER</span>
+            <span><span class="mouse-glyph"></span> CLICK GATE / TARGET</span>
+            <span><kbd>E</kbd> SHADOW STORM</span>
+            <span><kbd>P</kbd> PAUSE</span>
+          </div>
+        </header>
+
+        <aside class="menu-side">
+          <div class="menu-side-top">
+            <span class="vertical-title" aria-hidden="true">月鬼斬</span>
+            <div class="side-rule"></div>
+            <span class="side-stamp">UTS<br/>2026</span>
+          </div>
+          <div class="gate-card">
+            <span class="card-label"><i></i> SPIRIT GATE MECHANIC</span>
+            <p>Every gate is a choice. <em>+N</em> reinforces your army; <em>×N</em> multiplies it. Read your count — grow fast, but arrive strong.</p>
+            <div class="gate-legend">
+              <span><i class="dot cyan"></i> REINFORCE</span>
+              <span><i class="dot gold"></i> MULTIPLY</span>
+            </div>
+          </div>
+          <div class="best-run is-hidden" id="best-run">
+            <span class="card-label">BEST RUN</span>
+            <strong id="best-rank">—</strong>
+            <span id="best-detail">No record yet</span>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="menu-footer">
+        <span>AN ORIGINAL THREE.JS MINI GAME</span>
+        <span class="footer-center">60 FPS · PBR · DYNAMIC SHADOWS · PROCEDURAL AUDIO</span>
+        <span>GRAFIKA KOMPUTER · UTS</span>
+      </footer>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- PAUSE                                                              -->
+    <!-- ================================================================== -->
+    <section id="pause" class="screen pause-screen is-hidden" aria-label="Paused">
+      <div class="modal">
+        <span class="modal-kicker">THE PASS WAITS</span>
+        <h2 class="modal-title">PAUSED</h2>
+        <div class="modal-rule"></div>
+        <div class="pause-controls">
+          <span><kbd>A</kbd><kbd>D</kbd> STEER</span>
+          <span><kbd>CLICK</kbd> KUNAI / GATES</span>
+          <span><kbd>E</kbd> STORM</span>
+          <span><kbd>P</kbd> RESUME</span>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-resume" class="btn-primary btn-compact" type="button"><span class="btn-label">RESUME</span></button>
+          <button id="btn-restart-pause" class="btn-ghost" type="button">RESTART RUN</button>
+          <button id="btn-menu-pause" class="btn-ghost" type="button">MAIN MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- RESULT                                                             -->
+    <!-- ================================================================== -->
+    <section id="result" class="screen result-screen is-hidden" aria-label="Run result">
+      <div class="result-kanji" id="result-kanji" aria-hidden="true">勝</div>
+      <div class="result-inner">
+        <div class="result-heading">
+          <span id="result-kicker" class="modal-kicker">THE PASS IS YOURS</span>
+          <h2 id="result-title" class="result-title">PASS SECURED</h2>
+          <p id="result-sub" class="result-sub">Kurogane falls. The moon burns clean again.</p>
+        </div>
+        <div id="result-stats" class="result-stats">
+          <div><span>TIME</span><strong id="stat-time">00:00</strong></div>
+          <div><span>SHADOWS LEFT</span><strong id="stat-clones">0</strong></div>
+          <div><span>RONIN CUT DOWN</span><strong id="stat-squads">0</strong></div>
+          <div><span>CORE STRIKES</span><strong id="stat-cores">0</strong></div>
+        </div>
+        <div id="rank-block" class="rank-block">
+          <span class="rank-label">RANK</span>
+          <span id="rank-letter" class="rank-letter">S</span>
+          <span id="rank-note" class="rank-note">A flawless shadow.</span>
+        </div>
+        <div id="defeat-note" class="defeat-note is-hidden">
+          <span class="defeat-icon">!</span>
+          <div><strong id="defeat-reason">Your shadow army was wiped out.</strong><span id="defeat-tip">Use kunai to weaken squads before you collide.</span></div>
+        </div>
+        <div class="modal-actions result-actions">
+          <button id="btn-retry" class="btn-primary btn-compact" type="button"><span class="btn-label">RUN AGAIN</span></button>
+          <button id="btn-menu-result" class="btn-ghost" type="button">MAIN MENU</button>
+        </div>
+        <span class="result-key">PRESS ENTER TO RUN AGAIN</span>
+      </div>
+    </section>
+
+    <div id="error-screen" class="error-screen is-hidden">
+      <strong>WebGL could not start.</strong>
+      <span>Please use a modern browser with hardware acceleration enabled.</span>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

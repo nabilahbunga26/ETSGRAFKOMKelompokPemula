@@ -1,0 +1,27 @@
+{
+  "name": "ninja-clone-rush",
+  "version": "1.0.0",
+  "description": "Ninja Clone Rush - an original Three.js action mini game built for the Graphic Computer UTS project.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:model": "node tools/export-ninja.mjs"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "game",
+    "graphics"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}
